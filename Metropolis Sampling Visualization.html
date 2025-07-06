@@ -1,0 +1,1288 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Feature Detection with Metropolis Sampling</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f8f9fa;
+            color: #333;
+            line-height: 1.6;
+        }
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 10px;
+        }
+        .subtitle {
+            text-align: center;
+            color: #7f8c8d;
+            margin-bottom: 30px;
+        }
+        .main-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        .visualization-container {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            flex: 2;
+            min-width: 600px;
+        }
+        .canvas-container {
+            position: relative;
+            width: 600px;
+            height: 600px;
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        .distribution-container {
+            width: 600px;
+            height: 300px;
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        canvas {
+            border-radius: 10px;
+        }
+        .image-selector {
+            margin-bottom: 20px;
+        }
+        .controls {
+            flex: 1;
+            min-width: 300px;
+            background-color: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        .control-group {
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #eee;
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+        input[type="range"] {
+            width: 100%;
+            height: 8px;
+            border-radius: 4px;
+            background: #ecf0f1;
+        }
+        .value-display {
+            font-size: 0.9em;
+            color: #7f8c8d;
+            margin-top: 5px;
+        }
+        .info-panel {
+            background-color: #e8f4f8;
+            padding: 20px;
+            border-radius: 10px;
+            margin-top: 20px;
+            border-left: 5px solid #3498db;
+        }
+        .math {
+            background-color: #f5f5f5;
+            padding: 12px;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            margin: 15px 0;
+            overflow-x: auto;
+            border-left: 3px solid #3498db;
+        }
+        button {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-right: 10px;
+            margin-bottom: 10px;
+            font-size: 0.9em;
+            transition: background-color 0.2s;
+        }
+        button:hover {
+            background-color: #2980b9;
+        }
+        .legend {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin-top: 15px;
+            font-size: 0.85em;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .legend-color {
+            width: 15px;
+            height: 15px;
+            border-radius: 50%;
+            border: 1px solid rgba(0,0,0,0.1);
+        }
+        h2, h3 {
+            color: #3498db;
+            margin-top: 0;
+        }
+        .visual-effects {
+            position: absolute;
+            pointer-events: none;
+        }
+        .probability-wheel {
+            position: absolute;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: conic-gradient(
+                #2ecc71 0% var(--accept-percent), 
+                #e74c3c var(--accept-percent) 100%
+            );
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            color: white;
+            font-size: 12px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            transform: translate(-50%, -50%);
+            z-index: 10;
+        }
+        .feature-marker {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background-color: rgba(46, 204, 113, 0.7);
+            border: 2px solid white;
+            transform: translate(-50%, -50%);
+            z-index: 5;
+        }
+        .explanation {
+            background-color: white;
+            padding: 25px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+        }
+        .concept {
+            margin-bottom: 25px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #eee;
+        }
+        .concept h3 {
+            display: flex;
+            align-items: center;
+        }
+        .concept-icon {
+            margin-right: 10px;
+            font-size: 1.5em;
+        }
+        .highlight {
+            background-color: #fffde7;
+            padding: 2px 5px;
+            border-radius: 3px;
+            font-weight: bold;
+        }
+        .feature-stats {
+            margin-top: 15px;
+        }
+        .debug-panel {
+            background-color: #f8d7da;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+            font-size: 0.9em;
+        }
+        .distribution-label {
+            text-align: center;
+            margin-top: 10px;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+        .speed-controls {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        .file-upload {
+            margin-top: 15px;
+            padding: 10px;
+            border: 2px dashed #3498db;
+            border-radius: 5px;
+            text-align: center;
+        }
+        .file-upload label {
+            display: block;
+            margin-bottom: 10px;
+            color: #3498db;
+            font-weight: bold;
+        }
+        .file-upload input {
+            width: 100%;
+            margin-bottom: 10px;
+        }
+        .upload-btn {
+            background-color: #2ecc71;
+        }
+        .upload-btn:hover {
+            background-color: #27ae60;
+        }
+        .legend-container {
+            background-color: white;
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .legend-title {
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #2c3e50;
+        }
+        .legend-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+        }
+        .distribution-guide {
+            background-color: white;
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 15px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .guide-item {
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+        }
+        .guide-color {
+            width: 15px;
+            height: 15px;
+            border-radius: 3px;
+            margin-right: 8px;
+            flex-shrink: 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>Feature Detection with Metropolis Sampling</h1>
+    <p class="subtitle">Identifying image features through probabilistic sampling</p>
+    
+    <div class="explanation">
+        <div class="concept">
+            <h3><span class="concept-icon">🖼️</span> How This Works</h3>
+            <p>This simulation shows how the Metropolis algorithm can detect features in images by:</p>
+            <ol>
+                <li>Calculating <span class="highlight">local contrast</span> (edge strength) at each pixel</li>
+                <li>Treating <span class="highlight">high-contrast areas</span> as low-energy regions</li>
+                <li>Having particles <span class="highlight">randomly explore</span> the image space</li>
+                <li><span class="highlight">Preferentially staying</span> in low-energy (high-contrast) areas</li>
+                <li>Gradually <span class="highlight">revealing the feature map</span> through particle density</li>
+            </ol>
+        </div>
+    </div>
+    
+    <div class="main-container">
+        <div class="visualization-container">
+            <div class="canvas-container">
+                <canvas id="imageCanvas" width="600" height="600"></canvas>
+                <canvas id="particleCanvas" width="600" height="600" style="position: absolute; top: 0; left: 0;"></canvas>
+                <canvas id="contrastCanvas" width="600" height="600" style="position: absolute; top: 0; left: 0; display: none;"></canvas>
+                <div id="visualEffects" class="visual-effects"></div>
+                <div class="legend">
+                    <div class="legend-item">
+                        <div class="legend-color" style="background-color: #3498db;"></div>
+                        <span>Exploring particles</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background-color: #2ecc71;"></div>
+                        <span>Detected features</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="distribution-container">
+                <canvas id="distributionCanvas" width="600" height="300"></canvas>
+                <div class="distribution-label">Particle Distribution & Energy States</div>
+            </div>
+        </div>
+        
+        <div class="controls">
+            <div class="image-selector">
+                <h3>Sample Images</h3>
+                <button id="imgFace">Face</button>
+                <button id="imgChess">Chessboard</button>
+                <button id="imgCircle">Circles</button>
+                <button id="imgLines">Lines</button>
+                <button id="imgDebug">Show Contrast Map</button>
+                
+                <div class="file-upload">
+                    <label for="imageUpload">Or upload your own image:</label>
+                    <input type="file" id="imageUpload" accept="image/*">
+                    <button id="uploadBtn" class="upload-btn">Upload Image</button>
+                    <p id="uploadStatus" style="font-size: 0.8em; color: #7f8c8d;">No image selected</p>
+                </div>
+            </div>
+            
+            <h2>Simulation Controls</h2>
+            
+            <div class="control-group">
+                <label for="temperature">Temperature (T)</label>
+                <input type="range" id="temperature" min="0.01" max="2" step="0.01" value="0.5">
+                <div class="value-display">Current: <span id="tempValue">0.5</span> (Lower = more feature-focused)</div>
+            </div>
+            
+            <div class="control-group">
+                <label for="stepSize">Step Size</label>
+                <input type="range" id="stepSize" min="1" max="50" step="1" value="15">
+                <div class="value-display">Current: <span id="stepValue">15</span> pixels (Larger = bigger jumps)</div>
+            </div>
+            
+            <div class="control-group">
+                <label for="particleCount">Number of Particles</label>
+                <input type="range" id="particleCount" min="10" max="500" step="10" value="200">
+                <div class="value-display">Current: <span id="particleCountValue">200</span> particles</div>
+            </div>
+            
+            <div class="control-group">
+                <label for="contrastThreshold">Feature Threshold</label>
+                <input type="range" id="contrastThreshold" min="0.1" max="1" step="0.05" value="0.5">
+                <div class="value-display">Current: <span id="thresholdValue">0.5</span> (Higher = more selective)</div>
+            </div>
+            
+            <div class="control-group">
+                <button id="resetBtn">Reset Simulation</button>
+                <button id="pauseBtn">Pause</button>
+                <button id="showFeaturesBtn">Show Feature Map</button>
+                <div class="speed-controls">
+                    <button id="speedUpBtn">Speed Up (10s)</button>
+                    <button id="normalSpeedBtn">Normal Speed</button>
+                </div>
+            </div>
+            
+            <div class="legend-container">
+                <div class="legend-title">Color Coding Guide</div>
+                <div class="legend-grid">
+                    <div class="legend-item">
+                        <div class="legend-color" style="background-color: #3498db;"></div>
+                        <span>Blue: Exploring particles</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background-color: #2ecc71;"></div>
+                        <span>Green: Detected features</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background-color: #e74c3c;"></div>
+                        <span>Red: Rejected moves</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: repeating-linear-gradient(45deg, #2ecc71, #2ecc71 2px, white 2px, white 4px);"></div>
+                        <span>High probability regions</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: white; border: 1px solid #ccc;"></div>
+                        <span>Low probability regions</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="distribution-guide">
+                <div class="legend-title">Distribution Graph Guide</div>
+                <div class="guide-item">
+                    <div class="guide-color" style="background-color: #3498db;"></div>
+                    <span>Blue bars: Current particle locations by contrast level</span>
+                </div>
+                <div class="guide-item">
+                    <div class="guide-color" style="background-color: #e74c3c;"></div>
+                    <span>Red curve: Theoretical ideal distribution at current temperature</span>
+                </div>
+                <div class="guide-item">
+                    <div class="guide-color" style="background-color: #2ecc71;"></div>
+                    <span>Green line: Feature detection threshold</span>
+                </div>
+            </div>
+            
+            <div class="info-panel">
+                <h3>Feature Detection Progress</h3>
+                <div id="featureInfo">Initializing feature detection...</div>
+                <div class="feature-stats" id="featureStats"></div>
+                <div class="math">
+                    Acceptance Probability: min(1, exp(-ΔE/T))<br>
+                    where E = -contrast (higher contrast = lower energy)
+                </div>
+            </div>
+            
+            <div class="info-panel">
+                <h3>Energy State Visualization</h3>
+                <p>This plot shows how particles distribute across different energy states (contrast levels).</p>
+                <ul>
+                    <li><strong>X-axis:</strong> Contrast level (0 to 1)</li>
+                    <li><strong>Y-axis:</strong> Particle count at each level</li>
+                    <li><strong>Red curve:</strong> Boltzmann distribution at current temperature</li>
+                    <li><strong>Green line:</strong> Feature detection threshold</li>
+                </ul>
+                <p><strong>Key Observations:</strong></p>
+                <ul>
+                    <li>Particles cluster where the blue bars match the red curve</li>
+                    <li>Features appear when particles accumulate above the green threshold line</li>
+                    <li>Higher temperature = wider spread of particles across contrast levels</li>
+                </ul>
+                <div class="math">
+                    P(E) ∝ exp(-E/T) where E = -contrast
+                </div>
+            </div>
+            
+            <div class="debug-panel" id="debugInfo">
+                <h3>Debug Information</h3>
+                <p>Contrast range: <span id="contrastRange">0 to 0</span></p>
+                <p>Current particle positions: <span id="particlePositions">-</span></p>
+                <p>Simulation speed: <span id="speedDisplay">1x</span></p>
+                <p>Elapsed time: <span id="timeDisplay">0.0</span>s</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="explanation">
+        <div class="concept">
+            <h3><span class="concept-icon">🎨</span> Visual Guide to Sampling</h3>
+            <p><strong>Move Acceptance Rules:</strong></p>
+            <ul>
+                <li>Moves to <span class="highlight">higher contrast</span> (blue → green) are always accepted</li>
+                <li>Moves to <span class="highlight">lower contrast</span> (blue → red) are accepted probabilistically</li>
+                <li>Acceptance probability depends on temperature (T) and contrast difference</li>
+            </ul>
+            
+            <p><strong>Feature Formation:</strong></p>
+            <ul>
+                <li>Green markers appear when particles stay in high-contrast areas</li>
+                <li>Marker size and opacity indicate contrast strength</li>
+                <li>Darker green = stronger/more persistent features</li>
+            </ul>
+            
+            <p><strong>Probability Regions:</strong></p>
+            <ul>
+                <li><span class="highlight">High probability</span>: Edge areas where particles accumulate</li>
+                <li><span class="highlight">Low probability</span>: Uniform areas particles move through quickly</li>
+            </ul>
+        </div>
+        
+        <div class="concept">
+            <h3><span class="concept-icon">🔍</span> Feature Detection Process</h3>
+            <p>1. <strong>Contrast Calculation:</strong> We compute local contrast (edge strength) at each pixel using gradient magnitude<br>
+               2. <strong>Particle Initialization:</strong> Particles start at random positions in the image<br>
+               3. <strong>Random Movement:</strong> Each particle proposes a random move to a nearby position<br>
+               4. <strong>Metropolis Decision:</strong> The move is accepted based on energy difference (E = -contrast)<br>
+               5. <strong>Feature Marking:</strong> When particles stay in high-contrast areas, they leave markers<br>
+               6. <strong>Density Accumulation:</strong> Over time, markers reveal high-contrast features</p>
+        </div>
+        
+        <div class="concept">
+            <h3><span class="concept-icon">📊</span> Technical Implementation</h3>
+            <p>We convert image contrast to an energy landscape:<br>
+               <span class="math">E(x,y) = -contrast(x,y)</span><br>
+               The Metropolis algorithm samples from the Boltzmann distribution:<br>
+               <span class="math">P(x,y) ∝ exp(-E(x,y)/T) = exp(contrast(x,y)/T)</span><br>
+               Acceptance rule:<br>
+               <span class="math">acceptance_probability = min(1, exp(-ΔE/T)) = min(1, exp(Δcontrast/T))</span>
+            </p>
+        </div>
+        
+        <div class="concept">
+            <h3><span class="concept-icon">💡</span> About the Green Markers</h3>
+            <p>The green circles represent <strong>detected features</strong> and are generated when:</p>
+            <ol>
+                <li>A particle is in a location with contrast above the threshold</li>
+                <li>The particle stays in that location (move is accepted)</li>
+                <li>The marker size and opacity correspond to the contrast strength</li>
+            </ol>
+            <p>These markers emerge naturally from the particle dynamics and reflect the true sampling distribution.</p>
+        </div>
+    </div>
+
+    <script>
+        // Canvas setup
+        const imageCanvas = document.getElementById('imageCanvas');
+        const imageCtx = imageCanvas.getContext('2d');
+        const particleCanvas = document.getElementById('particleCanvas');
+        const particleCtx = particleCanvas.getContext('2d');
+        const contrastCanvas = document.getElementById('contrastCanvas');
+        const contrastCtx = contrastCanvas.getContext('2d');
+        const distributionCanvas = document.getElementById('distributionCanvas');
+        const distributionCtx = distributionCanvas.getContext('2d');
+        const width = imageCanvas.width;
+        const height = imageCanvas.height;
+        const distWidth = distributionCanvas.width;
+        const distHeight = distributionCanvas.height;
+        const visualEffectsContainer = document.getElementById('visualEffects');
+        
+        // Simulation parameters
+        let temperature = 0.5;
+        let stepSize = 15;
+        let particleCount = 200;
+        let contrastThreshold = 0.5;
+        let isPaused = false;
+        let particles = [];
+        let animationId = null;
+        let showFeatureMap = true;
+        let showContrastMap = false;
+        let currentImage = null;
+        let imageData = null;
+        let contrastData = null;
+        let maxContrast = 0;
+        let speedMultiplier = 1;
+        let simulationTime = 0;
+        let maxSimulationTime = 10000; // 10 seconds in ms
+        let manualSpeedOverride = false;
+        
+        // Image options
+        const images = {
+            face: {
+                name: "Face",
+                draw: function() {
+                    // Clear canvas
+                    imageCtx.fillStyle = '#FFF';
+                    imageCtx.fillRect(0, 0, width, height);
+                    
+                    // Draw face
+                    imageCtx.fillStyle = '#FFD700';
+                    imageCtx.beginPath();
+                    imageCtx.arc(width/2, height/2, 150, 0, Math.PI * 2);
+                    imageCtx.fill();
+                    
+                    // Eyes
+                    imageCtx.fillStyle = '#333';
+                    imageCtx.beginPath();
+                    imageCtx.arc(width/2 - 60, height/2 - 40, 25, 0, Math.PI * 2);
+                    imageCtx.arc(width/2 + 60, height/2 - 40, 25, 0, Math.PI * 2);
+                    imageCtx.fill();
+                    
+                    // Mouth
+                    imageCtx.strokeStyle = '#333';
+                    imageCtx.lineWidth = 8;
+                    imageCtx.beginPath();
+                    imageCtx.arc(width/2, height/2 + 40, 60, 0.1 * Math.PI, 0.9 * Math.PI);
+                    imageCtx.stroke();
+                    
+                    processImage();
+                }
+            },
+            chess: {
+                name: "Chessboard",
+                draw: function() {
+                    const squareSize = 75;
+                    imageCtx.fillStyle = '#FFF';
+                    imageCtx.fillRect(0, 0, width, height);
+                    
+                    imageCtx.fillStyle = '#333';
+                    for (let y = 0; y < height; y += squareSize) {
+                        for (let x = 0; x < width; x += squareSize) {
+                            if ((x + y) % (2 * squareSize) === 0) {
+                                imageCtx.fillRect(x, y, squareSize, squareSize);
+                            }
+                        }
+                    }
+                    
+                    processImage();
+                }
+            },
+            circle: {
+                name: "Circles",
+                draw: function() {
+                    imageCtx.fillStyle = '#FFF';
+                    imageCtx.fillRect(0, 0, width, height);
+                    
+                    // Draw 5 concentric circles
+                    imageCtx.strokeStyle = '#333';
+                    imageCtx.lineWidth = 8;
+                    for (let r = 50; r <= 250; r += 50) {
+                        imageCtx.beginPath();
+                        imageCtx.arc(width/2, height/2, r, 0, Math.PI * 2);
+                        imageCtx.stroke();
+                    }
+                    
+                    processImage();
+                }
+            },
+            lines: {
+                name: "Lines",
+                draw: function() {
+                    imageCtx.fillStyle = '#FFF';
+                    imageCtx.fillRect(0, 0, width, height);
+                    
+                    // Draw crossed lines
+                    imageCtx.strokeStyle = '#333';
+                    imageCtx.lineWidth = 8;
+                    
+                    // Horizontal line
+                    imageCtx.beginPath();
+                    imageCtx.moveTo(100, height/2);
+                    imageCtx.lineTo(width-100, height/2);
+                    imageCtx.stroke();
+                    
+                    // Vertical line
+                    imageCtx.beginPath();
+                    imageCtx.moveTo(width/2, 100);
+                    imageCtx.lineTo(width/2, height-100);
+                    imageCtx.stroke();
+                    
+                    // Diagonal lines
+                    imageCtx.beginPath();
+                    imageCtx.moveTo(100, 100);
+                    imageCtx.lineTo(width-100, height-100);
+                    imageCtx.stroke();
+                    
+                    imageCtx.beginPath();
+                    imageCtx.moveTo(width-100, 100);
+                    imageCtx.lineTo(100, height-100);
+                    imageCtx.stroke();
+                    
+                    processImage();
+                }
+            },
+            custom: {
+                name: "Custom Image",
+                draw: function(img) {
+                    // Clear canvas
+                    imageCtx.fillStyle = '#FFF';
+                    imageCtx.fillRect(0, 0, width, height);
+                    
+                    // Calculate aspect ratio and draw image
+                    const imgAspect = img.width / img.height;
+                    const canvasAspect = width / height;
+                    
+                    let drawWidth, drawHeight, offsetX, offsetY;
+                    
+                    if (imgAspect > canvasAspect) {
+                        // Image is wider than canvas
+                        drawWidth = width;
+                        drawHeight = width / imgAspect;
+                        offsetX = 0;
+                        offsetY = (height - drawHeight) / 2;
+                    } else {
+                        // Image is taller than canvas
+                        drawHeight = height;
+                        drawWidth = height * imgAspect;
+                        offsetX = (width - drawWidth) / 2;
+                        offsetY = 0;
+                    }
+                    
+                    imageCtx.drawImage(img, offsetX, offsetY, drawWidth, drawHeight);
+                    
+                    processImage();
+                }
+            }
+        };
+        
+        // Process image to create contrast map
+        function processImage() {
+            // Get image data
+            imageData = imageCtx.getImageData(0, 0, width, height);
+            const data = imageData.data;
+            
+            // Create contrast map (gradient magnitude)
+            contrastData = new Float32Array(width * height);
+            maxContrast = 0;
+            
+            // Calculate gradient magnitude at each pixel with proper boundary handling
+            for (let y = 0; y < height; y++) {
+                for (let x = 0; x < width; x++) {
+                    const idx = (y * width + x) * 4;
+                    
+                    // Get neighboring pixels with boundary checks
+                    const getPixel = (dx, dy) => {
+                        const nx = Math.max(0, Math.min(width-1, x + dx));
+                        const ny = Math.max(0, Math.min(height-1, y + dy));
+                        const nidx = (ny * width + nx) * 4;
+                        // Convert to grayscale using luminance formula
+                        return 0.299 * data[nidx] + 0.587 * data[nidx+1] + 0.114 * data[nidx+2];
+                    };
+                    
+                    // Sobel operator kernels
+                    const gx = (
+                        -1 * getPixel(-1, -1) + 1 * getPixel(1, -1) +
+                        -2 * getPixel(-1, 0) + 2 * getPixel(1, 0) +
+                        -1 * getPixel(-1, 1) + 1 * getPixel(1, 1)
+                    ) / 8;
+                    
+                    const gy = (
+                        -1 * getPixel(-1, -1) - 2 * getPixel(0, -1) - 1 * getPixel(1, -1) +
+                        1 * getPixel(-1, 1) + 2 * getPixel(0, 1) + 1 * getPixel(1, 1)
+                    ) / 8;
+                    
+                    const gradient = Math.sqrt(gx*gx + gy*gy) / 255;
+                    contrastData[y * width + x] = gradient;
+                    
+                    if (gradient > maxContrast) maxContrast = gradient;
+                }
+            }
+            
+            // Normalize contrast to [0,1] while preserving relative differences
+            if (maxContrast > 0) {
+                for (let i = 0; i < contrastData.length; i++) {
+                    contrastData[i] = Math.pow(contrastData[i] / maxContrast, 0.7);
+                }
+            }
+            
+            // Draw contrast map for debugging
+            drawContrastMap();
+            
+            // Update contrast range display
+            document.getElementById('contrastRange').textContent = 
+                `0 to ${maxContrast.toFixed(2)} (normalized to 0-1)`;
+            
+            // Initialize particles
+            initParticles();
+            simulationTime = 0;
+            manualSpeedOverride = false;
+            updateTimeDisplay();
+        }
+        
+        // Draw the contrast map for debugging
+        function drawContrastMap() {
+            contrastCtx.clearRect(0, 0, width, height);
+            const contrastImage = contrastCtx.createImageData(width, height);
+            
+            for (let y = 0; y < height; y++) {
+                for (let x = 0; x < width; x++) {
+                    const idx = (y * width + x) * 4;
+                    const contrast = contrastData[y * width + x];
+                    
+                    // Heatmap visualization
+                    const intensity = Math.floor(contrast * 255);
+                    contrastImage.data[idx] = intensity;       // R
+                    contrastImage.data[idx+1] = 0;             // G
+                    contrastImage.data[idx+2] = 255 - intensity; // B
+                    contrastImage.data[idx+3] = 150;           // A
+                }
+            }
+            
+            contrastCtx.putImageData(contrastImage, 0, 0);
+        }
+        
+        // Get contrast at position (x,y)
+        function getContrast(x, y) {
+            const xi = Math.max(0, Math.min(width-1, Math.floor(x)));
+            const yi = Math.max(0, Math.min(height-1, Math.floor(y)));
+            return contrastData[yi * width + xi];
+        }
+        
+        // Draw particle distribution histogram
+        function drawDistribution() {
+            distributionCtx.clearRect(0, 0, distWidth, distHeight);
+            
+            // Create histogram bins
+            const bins = 20;
+            const histogram = new Array(bins).fill(0);
+            const binSize = 1 / bins;
+            
+            // Count particles in each bin
+            for (const particle of particles) {
+                const bin = Math.min(bins-1, Math.floor(particle.contrast / binSize));
+                histogram[bin]++;
+            }
+            
+            // Find maximum count for scaling
+            const maxCount = Math.max(1, ...histogram);
+            
+            // Draw histogram bars
+            const barWidth = distWidth / bins;
+            distributionCtx.fillStyle = 'rgba(52, 152, 219, 0.7)';
+            
+            for (let i = 0; i < bins; i++) {
+                const barHeight = (histogram[i] / maxCount) * distHeight * 0.9;
+                distributionCtx.fillRect(
+                    i * barWidth,
+                    distHeight - barHeight,
+                    barWidth - 2,
+                    barHeight
+                );
+            }
+            
+            // Draw theoretical Boltzmann distribution
+            if (temperature > 0) {
+                distributionCtx.strokeStyle = '#e74c3c';
+                distributionCtx.lineWidth = 2;
+                distributionCtx.beginPath();
+                
+                const points = 50;
+                for (let i = 0; i <= points; i++) {
+                    const x = i / points;
+                    // E = -contrast, so P(E) ∝ exp(contrast/T)
+                    const y = Math.exp(x / temperature) / Math.exp(1 / temperature); // Normalized
+                    const plotX = x * distWidth;
+                    const plotY = distHeight - y * distHeight * 0.9;
+                    
+                    if (i === 0) {
+                        distributionCtx.moveTo(plotX, plotY);
+                    } else {
+                        distributionCtx.lineTo(plotX, plotY);
+                    }
+                }
+                
+                distributionCtx.stroke();
+            }
+            
+            // Draw axes and labels
+            distributionCtx.strokeStyle = '#333';
+            distributionCtx.lineWidth = 1;
+            distributionCtx.beginPath();
+            distributionCtx.moveTo(0, distHeight);
+            distributionCtx.lineTo(distWidth, distHeight);
+            distributionCtx.moveTo(0, distHeight);
+            distributionCtx.lineTo(0, 0);
+            distributionCtx.stroke();
+            
+            // Draw threshold line
+            if (contrastThreshold > 0) {
+                distributionCtx.strokeStyle = '#2ecc71';
+                distributionCtx.lineWidth = 1;
+                distributionCtx.beginPath();
+                const thresholdX = contrastThreshold * distWidth;
+                distributionCtx.moveTo(thresholdX, 0);
+                distributionCtx.lineTo(thresholdX, distHeight);
+                distributionCtx.stroke();
+            }
+        }
+        
+        // Particle class
+        class Particle {
+            constructor() {
+                this.reset();
+                this.history = [];
+                this.featureMarkers = [];
+                this.stepsSinceMove = 0;
+            }
+            
+            reset() {
+                this.x = Math.random() * width;
+                this.y = Math.random() * height;
+                this.contrast = getContrast(this.x, this.y);
+                this.proposedX = this.x;
+                this.proposedY = this.y;
+                this.proposedContrast = this.contrast;
+                this.radius = 3;
+                this.isMoving = false;
+                this.moveProgress = 0;
+                this.lastAccepted = true;
+                this.velocity = { x: 0, y: 0 };
+                this.stepsInFeature = 0;
+                this.stepsSinceMove = 0;
+            }
+            
+            proposeMove() {
+                // Random direction with some momentum from previous move
+                const angle = Math.random() * Math.PI * 2;
+                const distance = (Math.random() * 0.5 + 0.5) * stepSize;
+                
+                this.proposedX = Math.max(0, Math.min(width-1, this.x + Math.cos(angle) * distance));
+                this.proposedY = Math.max(0, Math.min(height-1, this.y + Math.sin(angle) * distance));
+                this.proposedContrast = getContrast(this.proposedX, this.proposedY);
+                this.isMoving = true;
+                this.moveProgress = 0;
+                
+                // Calculate velocity for smooth animation
+                this.velocity = {
+                    x: (this.proposedX - this.x) * 0.05 * speedMultiplier,
+                    y: (this.proposedY - this.y) * 0.05 * speedMultiplier
+                };
+            }
+            
+            decideMove() {
+                // Energy = -contrast, so ΔE = -(new_contrast - current_contrast)
+                const deltaE = -(this.proposedContrast - this.contrast);
+                
+                // Always accept moves to lower energy (higher contrast)
+                if (deltaE <= 0) {
+                    this.lastAccepted = true;
+                    return true;
+                }
+                
+                // For moves to higher energy (lower contrast), accept with probability exp(-ΔE/T)
+                const acceptanceProb = Math.exp(-deltaE / temperature);
+                this.lastAccepted = Math.random() < acceptanceProb;
+                return this.lastAccepted;
+            }
+            
+            update() {
+                if (!this.isMoving) {
+                    this.stepsSinceMove++;
+                    
+                    // Propose moves more frequently in low-contrast areas
+                    const moveProbability = this.contrast < contrastThreshold ? 
+                        0.1 * speedMultiplier : 0.05 * speedMultiplier;
+                    
+                    if (this.stepsSinceMove > 3 && Math.random() < moveProbability) {
+                        this.proposeMove();
+                    }
+                    return;
+                }
+                
+                this.moveProgress += 0.05 * speedMultiplier;
+                
+                if (this.moveProgress >= 1) {
+                    this.moveProgress = 1;
+                    this.isMoving = false;
+                    this.stepsSinceMove = 0;
+                    
+                    const accepted = this.decideMove();
+                    if (accepted) {
+                        this.x = this.proposedX;
+                        this.y = this.proposedY;
+                        this.contrast = this.proposedContrast;
+                        
+                        // Track time spent in high-contrast areas
+                        if (this.contrast > contrastThreshold) {
+                            this.stepsInFeature++;
+                            
+                            // Add feature marker periodically
+                            if (this.stepsInFeature % 2 === 0) {
+                                this.featureMarkers.push({
+                                    x: this.x, 
+                                    y: this.y, 
+                                    contrast: this.contrast,
+                                    lifetime: 100
+                                });
+                            }
+                        } else {
+                            this.stepsInFeature = 0;
+                        }
+                    }
+                    
+                    // Store history for visualization
+                    this.history.push({x: this.x, y: this.y, contrast: this.contrast});
+                    if (this.history.length > 20) {
+                        this.history.shift();
+                    }
+                }
+                
+                // Update feature markers lifetime
+                for (let i = this.featureMarkers.length - 1; i >= 0; i--) {
+                    this.featureMarkers[i].lifetime--;
+                    if (this.featureMarkers[i].lifetime <= 0) {
+                        this.featureMarkers.splice(i, 1);
+                    }
+                }
+            }
+            
+            draw(ctx) {
+                // Draw history trail
+                if (this.history.length > 1) {
+                    ctx.strokeStyle = 'rgba(52, 152, 219, 0.3)';
+                    ctx.lineWidth = 1;
+                    ctx.beginPath();
+                    ctx.moveTo(this.history[0].x, this.history[0].y);
+                    for (let i = 1; i < this.history.length; i++) {
+                        ctx.lineTo(this.history[i].x, this.history[i].y);
+                    }
+                    ctx.stroke();
+                }
+                
+                // Draw moving particle
+                if (this.isMoving && this.moveProgress < 1) {
+                    const currentX = this.x + (this.proposedX - this.x) * this.moveProgress;
+                    const currentY = this.y + (this.proposedY - this.y) * this.moveProgress;
+                    
+                    ctx.fillStyle = this.lastAccepted ? 'rgba(52, 152, 219, 0.7)' : 'rgba(231, 76, 60, 0.7)';
+                    ctx.beginPath();
+                    ctx.arc(currentX, currentY, this.radius, 0, Math.PI * 2);
+                    ctx.fill();
+                } else {
+                    // Draw stationary particle
+                    ctx.fillStyle = this.contrast > contrastThreshold ? 
+                        'rgba(46, 204, 113, 0.7)' : 'rgba(52, 152, 219, 0.7)';
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                
+                // Draw feature markers if enabled
+                if (showFeatureMap) {
+                    for (const marker of this.featureMarkers) {
+                        const size = 3 + marker.contrast * 7;
+                        const opacity = Math.min(0.7, marker.lifetime / 100 * 0.7);
+                        ctx.fillStyle = `rgba(46, 204, 113, ${opacity})`;
+                        ctx.beginPath();
+                        ctx.arc(marker.x, marker.y, size, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+                }
+            }
+        }
+        
+        // Initialize particles
+        function initParticles() {
+            particles = [];
+            for (let i = 0; i < particleCount; i++) {
+                particles.push(new Particle());
+            }
+            updateFeatureStats();
+        }
+        
+        // Update feature statistics
+        function updateFeatureStats() {
+            let featureCount = 0;
+            let totalContrast = 0;
+            let featureArea = 0;
+            
+            // Count particles on features
+            for (const particle of particles) {
+                if (particle.contrast > contrastThreshold) {
+                    featureCount++;
+                    totalContrast += particle.contrast;
+                }
+            }
+            
+            // Estimate feature area by counting high-contrast pixels
+            if (contrastData) {
+                for (let i = 0; i < contrastData.length; i++) {
+                    if (contrastData[i] > contrastThreshold) featureArea++;
+                }
+            }
+            
+            const featurePercentage = (featureCount / particleCount * 100).toFixed(1);
+            const avgContrast = featureCount > 0 ? (totalContrast / featureCount).toFixed(2) : 0;
+            const areaPercentage = (featureArea / (width * height) * 100).toFixed(1);
+            
+            document.getElementById('featureStats').innerHTML = `
+                <p>Particles on features: <strong>${featurePercentage}%</strong></p>
+                <p>Average feature strength: <strong>${avgContrast}</strong></p>
+                <p>Estimated feature area: <strong>${areaPercentage}%</strong> of image</p>
+            `;
+            
+            // Update debug info
+            const sampleParticles = particles.slice(0, 3).map(p => 
+                `(${Math.floor(p.x)},${Math.floor(p.y)})@${p.contrast.toFixed(2)}`
+            ).join(', ');
+            document.getElementById('particlePositions').textContent = sampleParticles + (particles.length > 3 ? ', ...' : '');
+        }
+        
+        // Update time display
+        function updateTimeDisplay() {
+            document.getElementById('timeDisplay').textContent = (simulationTime / 1000).toFixed(1);
+            document.getElementById('speedDisplay').textContent = `${speedMultiplier}x`;
+        }
+        
+        // Animation loop
+        function animate(timestamp) {
+            if (isPaused) return;
+            
+            particleCtx.clearRect(0, 0, width, height);
+            
+            // Update simulation time
+            if (!lastTimestamp) lastTimestamp = timestamp;
+            const deltaTime = timestamp - lastTimestamp;
+            lastTimestamp = timestamp;
+            simulationTime += deltaTime;
+            
+            // Automatic speed adjustment if not manually overridden
+            if (!manualSpeedOverride) {
+                if (simulationTime > maxSimulationTime * 0.8) {
+                    speedMultiplier = 3;
+                } else if (simulationTime > maxSimulationTime * 0.5) {
+                    speedMultiplier = 2;
+                } else {
+                    speedMultiplier = 1;
+                }
+            }
+            
+            // Update and draw particles
+            let anyMoving = false;
+            particles.forEach(particle => {
+                for (let i = 0; i < speedMultiplier; i++) {
+                    particle.update();
+                    if (particle.isMoving) anyMoving = true;
+                }
+                particle.draw(particleCtx);
+            });
+            
+            // Draw particle distribution
+            drawDistribution();
+            
+            // Update displays
+            updateTimeDisplay();
+            
+            // Update feature statistics periodically
+            if (Math.floor(Date.now() / 200) % 10 === 0) {
+                updateFeatureStats();
+            }
+            
+            // Check if we've reached the time limit (only when not manually overridden)
+            if (!manualSpeedOverride && simulationTime >= maxSimulationTime) {
+                isPaused = true;
+                document.getElementById('pauseBtn').textContent = 'Resume';
+                return;
+            }
+            
+            animationId = requestAnimationFrame(animate);
+        }
+        
+        let lastTimestamp = 0;
+        
+        // Event listeners for controls
+        document.getElementById('temperature').addEventListener('input', function() {
+            temperature = parseFloat(this.value);
+            document.getElementById('tempValue').textContent = temperature.toFixed(2);
+        });
+        
+        document.getElementById('stepSize').addEventListener('input', function() {
+            stepSize = parseInt(this.value);
+            document.getElementById('stepValue').textContent = stepSize;
+        });
+        
+        document.getElementById('particleCount').addEventListener('input', function() {
+            particleCount = parseInt(this.value);
+            document.getElementById('particleCountValue').textContent = particleCount;
+            initParticles();
+        });
+        
+        document.getElementById('contrastThreshold').addEventListener('input', function() {
+            contrastThreshold = parseFloat(this.value);
+            document.getElementById('thresholdValue').textContent = contrastThreshold.toFixed(2);
+            updateFeatureStats();
+        });
+        
+        document.getElementById('resetBtn').addEventListener('click', function() {
+            initParticles();
+            simulationTime = 0;
+            manualSpeedOverride = false;
+            if (isPaused) {
+                animate();
+                isPaused = false;
+                document.getElementById('pauseBtn').textContent = 'Pause';
+            }
+        });
+        
+        document.getElementById('pauseBtn').addEventListener('click', function() {
+            isPaused = !isPaused;
+            this.textContent = isPaused ? 'Resume' : 'Pause';
+            if (!isPaused) {
+                lastTimestamp = 0;
+                animate();
+            }
+        });
+        
+        document.getElementById('showFeaturesBtn').addEventListener('click', function() {
+            showFeatureMap = !showFeatureMap;
+            this.textContent = showFeatureMap ? 'Hide Feature Map' : 'Show Feature Map';
+        });
+        
+        document.getElementById('imgDebug').addEventListener('click', function() {
+            showContrastMap = !showContrastMap;
+            contrastCanvas.style.display = showContrastMap ? 'block' : 'none';
+            this.textContent = showContrastMap ? 'Hide Contrast Map' : 'Show Contrast Map';
+        });
+        
+        document.getElementById('speedUpBtn').addEventListener('click', function() {
+            speedMultiplier = 5;
+            maxSimulationTime = 2000; // Complete in 2 seconds when manually sped up
+            manualSpeedOverride = true;
+            if (isPaused) {
+                isPaused = false;
+                document.getElementById('pauseBtn').textContent = 'Pause';
+                lastTimestamp = 0;
+                animate();
+            }
+            updateTimeDisplay();
+        });
+        
+        document.getElementById('normalSpeedBtn').addEventListener('click', function() {
+            speedMultiplier = 1;
+            maxSimulationTime = 10000; // Reset to 10 seconds
+            manualSpeedOverride = false;
+            updateTimeDisplay();
+        });
+        
+        // Image selection
+        document.getElementById('imgFace').addEventListener('click', function() {
+            currentImage = images.face;
+            currentImage.draw();
+            document.getElementById('featureInfo').innerHTML = 
+                '<p>Detecting facial features (eyes, mouth, face outline)...</p>';
+        });
+        
+        document.getElementById('imgChess').addEventListener('click', function() {
+            currentImage = images.chess;
+            currentImage.draw();
+            document.getElementById('featureInfo').innerHTML = 
+                '<p>Detecting chessboard corners and edges...</p>';
+        });
+        
+        document.getElementById('imgCircle').addEventListener('click', function() {
+            currentImage = images.circle;
+            currentImage.draw();
+            document.getElementById('featureInfo').innerHTML = 
+                '<p>Detecting circular features...</p>';
+        });
+        
+        document.getElementById('imgLines').addEventListener('click', function() {
+            currentImage = images.lines;
+            currentImage.draw();
+            document.getElementById('featureInfo').innerHTML = 
+                '<p>Detecting line intersections and endpoints...</p>';
+        });
+        
+        // Image upload handling
+        document.getElementById('uploadBtn').addEventListener('click', function() {
+            const fileInput = document.getElementById('imageUpload');
+            if (fileInput.files.length === 0) {
+                document.getElementById('uploadStatus').textContent = 'Please select an image first';
+                return;
+            }
+            
+            const file = fileInput.files[0];
+            const reader = new FileReader();
+            
+            reader.onload = function(e) {
+                const img = new Image();
+                img.onload = function() {
+                    document.getElementById('uploadStatus').textContent = `Loaded: ${file.name}`;
+                    currentImage = images.custom;
+                    currentImage.draw(img);
+                    document.getElementById('featureInfo').innerHTML = 
+                        `<p>Detecting features in uploaded image: ${file.name}</p>`;
+                };
+                img.src = e.target.result;
+            };
+            
+            reader.onerror = function() {
+                document.getElementById('uploadStatus').textContent = 'Error loading image';
+            };
+            
+            reader.readAsDataURL(file);
+        });
+        
+        // Update file selection display
+        document.getElementById('imageUpload').addEventListener('change', function() {
+            if (this.files.length > 0) {
+                document.getElementById('uploadStatus').textContent = `Selected: ${this.files[0].name}`;
+            } else {
+                document.getElementById('uploadStatus').textContent = 'No image selected';
+            }
+        });
+        
+        // Initialize with face image
+        currentImage = images.face;
+        currentImage.draw();
+        lastTimestamp = 0;
+        animate();
+    </script>
+</body>
+</html>
